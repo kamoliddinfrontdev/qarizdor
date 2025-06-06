@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Qarzdorlar Ro'yxati</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen p-6">
+  <div class="max-w-xl mx-auto bg-white shadow-lg rounded-xl p-6">
+    <h2 class="text-3xl font-bold text-center mb-6 text-gray-800">Qarzdorlar Ro'yxati</h2>
+
+    <!-- Forma -->
+    <div class="space-y-4">
+      <input type="text" id="nameInput" placeholder="Ism kiriting" class="w-full p-3 border rounded-xl" />
+      <input type="number" id="amountInput" placeholder="Qarzdorlik (so'm)" class="w-full p-3 border rounded-xl" />
+      <input type="number" id="eggInput" placeholder="Tuxum soni (ixtiyoriy)" class="w-full p-3 border rounded-xl" />
+      <input type="number" id="eggPriceInput" placeholder="Tuxum narxi (so'm)" class="w-full p-3 border rounded-xl" />
+      <input type="text" id="phoneInput" placeholder="Raqam (ixtiyoriy)" class="w-full p-3 border rounded-xl" />
+      <select id="eggType" class="w-full p-3 border rounded-xl">
+        <option value="">Tuxum turi (ixtiyoriy)</option>
+        <option value="katta">Katta</option>
+        <option value="o'rtacha">O'rtacha</option>
+        <option value="kichik">Kichik</option>
+      </select>
+      <button onclick="addDebt()" class="w-full bg-blue-600 text-white py-3 rounded-xl">Qo'shish</button>
+
+      <!-- Qidirish -->
+      <div class="flex gap-2 mt-6 flex-col sm:flex-row">
+        <input type="text" id="searchInput" placeholder="Qidirish..." class="flex-1 p-3 border rounded-xl" />
+        <button onclick="searchExact()" class="bg-green-600 text-white px-6 py-3 rounded-xl">Qidir</button>
+      </div>
+    </div>
+
+    <div id="message" class="mt-4 text-sm text-red-600"></div>
+    <div id="debtList" class="mt-6 space-y-4"></div>
+  </div>
+
+  <script>
+    let debts = JSON.parse(localStorage.getItem('debts')) || {};
+
+    function saveToLocalStorage() {
+      localStorage.setItem('debts', JSON.stringify(debts));
+    }
+
+    function showMessage(text) {
+      const msg = document.getElementById('message');
+      msg.innerHTML = text;
+      setTimeout(() => msg.textContent = '', 4000);
+    }
+
+    function addDebt() {
+      const name = document.getElementById('nameInput').value.trim();
+      const amount = parseFloat(document.getElementById('amountInput').value);
+      const eggs = parseInt(document.getElementById('eggInput').value) || 0;
+      const eggPrice = parseFloat(document.getElementById('eggPriceInput').value) || 0;
+      const phone = document.getElementById('phoneInput').value.trim();
+      const eggType = document.getElementById('eggType').value;
+
+      if (!name || isNaN(amount)) {
+        showMessage("Iltimos, ism va summani to‘g‘ri kiriting.");
+        return;
+      }
+
+      if (debts[name]) {
+        showMessage("Bu ism allaqachon ro'yxatda bor.");
+        return;
+      }
+
+      const eggTotalPrice = eggs * eggPrice;
+      debts[name] = { amount: amount + eggTotalPrice, eggs, phone, eggType };
+      saveToLocalStorage();
+      displayDebts();
+
+      // Tozalash
+      document.getElementById('nameInput').value = "";
+      document.getElementById('amountInput').value = "";
+      document.getElementById('eggInput').value = "";
+      document.getElementById('eggPriceInput').value = "";
+      document.getElementById('phoneInput').value = "";
+      document.getElementById('eggType').value = "";
+    }
+
+    function displayDebts(filter = "") {
+      const listDiv = document.getElementById('debtList');
+      listDiv.innerHTML = "";
+
+      for (const [name, data] of Object.entries(debts)) {
+        if (name.toLowerCase().includes(filter.toLowerCase())) {
+          const id = name.replace(/\s+/g, '_');
+          listDiv.innerHTML += `
+            <div class="bg-white border p-4 rounded-xl shadow">
+              <div class="flex flex-col gap-2">
+                <div>
+                  <h3 class="text-xl font-bold">${name}</h3>
+                  <p>Qarzdorlik: <span class="text-blue-600 font-semibold">${data.amount} so'm</span></p>
+                  ${data.eggs ? `<p class="text-yellow-600">Tuxum: ${data.eggs} ta</p>` : ""}
+                  ${data.phone ? `<p>📞 ${data.phone}</p>` : ""}
+                  ${data.eggType ? `<p>Tuxum turi: ${data.eggType}</p>` : ""}
+                </div>
+                <div class="flex flex-col sm:flex-row gap-2">
+                  <input type="number" id="add-${id}" placeholder="Qo‘shiladigan summa" class="flex-1 border rounded-xl p-2" />
+                  <button onclick="addToDebt('${name}', '${id}')" class="bg-yellow-500 text-white px-4 py-2 rounded-xl">Qo‘shish</button>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-2">
+                  <input type="number" id="sub-${id}" placeholder="Ayriladigan summa" class="flex-1 border rounded-xl p-2" />
+                  <button onclick="subtractFromDebt('${name}', '${id}')" class="bg-red-500 text-white px-4 py-2 rounded-xl">Ayirish</button>
+                </div>
+                <button onclick="deleteDebt('${name}')" class="bg-gray-500 text-white px-4 py-2 rounded-xl w-full sm:w-auto">O‘chirish</button>
+              </div>
+            </div>
+          `;
+        }
+      }
+    }
+
+    function addToDebt(name, id) {
+      const value = parseFloat(document.getElementById(`add-${id}`).value);
+      if (isNaN(value) || value <= 0) return;
+      debts[name].amount += value;
+      saveToLocalStorage();
+      displayDebts();
+    }
+
+    function subtractFromDebt(name, id) {
+      const value = parseFloat(document.getElementById(`sub-${id}`).value);
+      if (isNaN(value) || value <= 0) return;
+      debts[name].amount -= value;
+      if (debts[name].amount < 0) debts[name].amount = 0;
+      saveToLocalStorage();
+      displayDebts();
+    }
+
+    function deleteDebt(name) {
+      delete debts[name];
+      saveToLocalStorage();
+      displayDebts();
+    }
+
+    function searchExact() {
+      const q = document.getElementById('searchInput').value.trim();
+      displayDebts(q);
+    }
+
+    displayDebts();
+  </script>
+</body>
+</html>
